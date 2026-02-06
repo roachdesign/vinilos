@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Vinilos Profesional (Sheets)</title>
+    <!-- Biblioteca para generar imágenes -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.2em;
+            font-weight: 300;
+        }
+
+        .price-display {
+            background: #f8f9fa;
+            padding: 25px 30px;
+            border-bottom: 3px solid #e9ecef;
+        }
+
+        .price-display h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .price-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price-item .list-name {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .price-item .price-value {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #27ae60;
+        }
+
+        .loading-prices {
+            text-align: center;
+            padding: 20px;
+            color: #3498db;
+            font-weight: 600;
+        }
+
+        .error-prices {
+            text-align: center;
+            padding: 15px;
+            background: #fee;
+            color: #c33;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .section {
+            padding: 30px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title.neutros { border-bottom-color: #95a5a6; }
+        .section-title.colores { border-bottom-color: #e74c3c; }
+        .section-title.metalizados { border-bottom-color: #f39c12; }
+        .section-title.reflectivos { border-bottom-color: #3498db; }
+        .section-title.fluo { border-bottom-color: #2ecc71; }
+        .section-title.carbono { border-bottom-color: #34495e; }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .color-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            text-align: center;
+        }
+
+        .color-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+
+        .color-card.selected {
+            border-color: #3498db;
+            background: #f0f8ff;
+        }
+
+        .color-preview {
+            width: 100%;
+            height: 120px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Textura de carbono */
+        .carbon-texture {
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px),
+                repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+            background-size: 10px 10px;
+        }
+
+        .carbon-black { background-color: #1a1a1a; }
+        .carbon-white { background-color: #f5f5f5; }
+        .carbon-transparent { background-color: #d0d0d0; opacity: 0.8; }
+        .carbon-gray { background-color: #808080; }
+
+        .color-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            letter-spacing: -1px;
+        }
+
+        .meter-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+
+        .meter-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.8em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .meter-btn.minus {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .meter-btn.plus {
+            background: #27ae60;
+            color: white;
+        }
+
+        .meter-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .meter-btn:active {
+            transform: scale(0.95);
+        }
+
+        .meter-display {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: #2c3e50;
+            min-width: 80px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .step-info {
+            font-size: 0.8em;
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .subtotal {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #27ae60;
+            padding: 12px;
+            background: rgba(39, 174, 96, 0.1);
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-wrapper {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+
+        .custom-checkbox {
+            width: 28px;
+            height: 28px;
+            border: 3px solid #bdc3c7;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .color-card.selected .custom-checkbox {
+            background: #3498db;
+            border-color: #3498db;
+        }
+
+        .custom-checkbox::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s;
+        }
+
+        .color-card.selected .custom-checkbox::after {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .controls {
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-top: 3px solid #e9ecef;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; transform: translateY(-2px); }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #229954; transform: translateY(-2px); }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-whatsapp { background: #25D366; color: white; }
+        .btn-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; transform: translateY(-2px); }
+
+        .total-section {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .total-info h3 {
+            font-size: 1.3em;
+            margin-bottom: 8px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .total-amount {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #2ecc71;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-60px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body { padding: 30px; }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #ecf0f1;
+            align-items: center;
+        }
+
+        .close-modal {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.8em;
+            cursor: pointer;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .close-modal:hover {
+            background: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .notification {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: #27ae60;
+            color: white;
+            padding: 18px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transform: translateX(500px);
+            transition: transform 0.4s ease;
+            z-index: 2000;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+
+        .notification.show { transform: translateX(0); }
+
+        /* Estilos para el modal de imagen */
+        .image-preview-modal .modal-content {
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .image-preview-modal img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin: 20px 0;
+        }
+
+        .share-instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .color-grid { grid-template-columns: 1fr; }
+            header h1 { font-size: 2em; }
+            .price-grid { grid-template-columns: 1fr; }
+            .meter-display { font-size: 1.8em; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🎨 Gestor de Vinilos</h1>
+        <p>Sistema de pedidos con control por listas de precios</p>
+    </header>
+
+    <div class="price-display">
+        <h3>💰 Precios Actuales por Lista</h3>
+        <div id="loadingPrices" class="loading-prices">
+            ⏳ Cargando precios desde Google Sheets...
+        </div>
+        <div id="pricesError" class="error-prices" style="display: none;">
+            ❌ Error al cargar precios. Usando valores de respaldo.
+        </div>
+        <div class="price-grid" id="pricesGrid" style="display: none;">
+            <div class="price-item">
+                <span class="list-name">⚪ Neutros :</span>
+                <span class="price-value" id="displayPrice1">$--</span>
+            </div>
+            <div class="price-item">
+                <span class="list-name">🔴 Colores :</span>
+                <span class="price-value" id="displayPrice2">$--</span>
+            </div>
+            <div class="price-item">
+                <span class="list-name">✨ Metalizados :</span>
+                <span class="price-value" id="displayPrice3">$--</span>
+            </div>
+            <div class="price-item">
+                <span class="list-name">⚡ Reflectivos :</span>
+                <span class="price-value" id="displayPrice4">$--</span>
+            </div>
+            <div class="price-item">
+                <span class="list-name">🌟 Fluo :</span>
+                <span class="price-value" id="displayPrice5">$--</span>
+            </div>
+            <div class="price-item">
+                <span class="list-name">🏁 Carbono :</span>
+                <span class="price-value" id="displayPrice6">$--</span>
+            </div>
+        </div>
+        <div style="margin-top: 15px; padding: 10px; background: #e8f4f8; border-radius: 6px; font-size: 0.85em; color: #666; text-align: center;">
+            📊 Los precios se actualizan automáticamente desde Google Sheets
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title neutros">⚪ Neutros (Lista 1)</h2>
+        <div class="color-grid" id="gridNeutros"></div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title colores">🔴 Colores (Lista 2)</h2>
+        <div class="color-grid" id="gridColores"></div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title metalizados">✨ Metalizados (Lista 3)</h2>
+        <div class="color-grid" id="gridMetalizados"></div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title reflectivos">⚡ Reflectivos (Lista 4)</h2>
+        <div class="color-grid" id="gridReflectivos"></div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title fluo">🌟 Fluo (Lista 5)</h2>
+        <div class="color-grid" id="gridFluo"></div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title carbono">🏁 Carbono (Lista 6)</h2>
+        <div class="color-grid" id="gridCarbono"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="selectAll()">✓ Todos</button>
+        <button class="btn btn-warning" onclick="deselectAll()">✗ Ninguno</button>
+        <button class="btn btn-danger" onclick="clearData()">🗑 Limpiar</button>
+        <button class="btn btn-success" onclick="saveOrder()">💾 Guardar Pedido</button>
+    </div>
+
+    <div class="total-section">
+        <div class="total-info">
+            <h3>Resumen del Pedido</h3>
+            <div style="opacity: 0.9; font-size: 1.1em;">
+                <span id="totalItems">0</span> items | <span id="totalMeters">0</span> metros
+            </div>
+        </div>
+        <div class="total-amount" id="totalPrice">$0.00</div>
+    </div>
+</div>
+
+<!-- Modal de pedido -->
+<div class="modal" id="orderModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📝 Pedido Confirmado</h2>
+            <button class="close-modal" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- Modal de vista previa de imagen -->
+<div class="modal image-preview-modal" id="imageModal">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);">
+            <h2>📷 Vista Previa</h2>
+            <button class="close-modal" onclick="closeImageModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="imageContainer"></div>
+            <div class="share-instructions">
+                <strong>📱 Para enviar por WhatsApp:</strong>
+                <ol style="margin-top: 10px; padding-left: 20px;">
+                    <li>Presioná y mantené la imagen de arriba</li>
+                    <li>Seleccioná "Guardar imagen" o "Compartir"</li>
+                    <li>Abrí WhatsApp y enviala</li>
+                </ol>
+            </div>
+            <button class="btn btn-whatsapp" onclick="shareToWhatsApp()" style="width: 100%; margin-top: 10px;">
+                📱 Intentar compartir directo
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="notification" id="notification">Pedido guardado</div>
+
+<script>
+    // ============================================
+    // CONFIGURACIÓN - URL DE GOOGLE SHEETS
+    // ============================================
+    
+    // REEMPLAZÁ ESTA URL con la tuya cuando quieras cambiarla
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS0l3TMUBAyEaNZikA3C0s35G8GYLq302-Wm1mePxCthc7MX47BqfqqHDpsGR3mao-VIxCfbv0BAjRz/pub?gid=0&single=true&output=csv';
+    
+    // ============================================
+    // PRECIOS DE RESPALDO (si falla la carga)
+    // ============================================
+    
+    const BACKUP_PRICES = {
+        1: 5414.50,   // Neutros
+        2: 6630,      // Colores  
+        3: 7514,      // Metalizados
+        4: 6298.50,   // Reflectivos
+        5: 25967.50,  // Fluo
+        6: 26000      // Carbono
+    };
+    
+    // Variable global de precios (se carga dinámicamente)
+    let PRICES = { ...BACKUP_PRICES };
+    
+    // ============================================
+    // CONFIGURACIÓN DE COLORES - EDITAR AQUÍ LOS TONOS HEX
+    // ============================================
+    
+    const colorData = {
+        neutros: [
+            { code: '010', color: '#FFFFFF', list: 1, step: 1 },
+            { code: '070', color: '#000000', list: 1, step: 1 },
+            { code: '070m', color: '#1a1a1a', list: 1, step: 1 }
+        ],
+        colores: [
+            { code: '021', color: '#FFDD00', list: 2, step: 1 },
+            { code: '031', color: '#D90707', list: 2, step: 1 },
+            { code: '031m', color: '#B22222', list: 2, step: 2 }, // Múltiplos de 2
+            { code: '036', color: '#FF8C00', list: 2, step: 1 },
+            { code: '040', color: '#8B00FF', list: 2, step: 1 },
+            { code: '041', color: '#C71585', list: 2, step: 1 },
+            { code: '045', color: '#FFB6C1', list: 2, step: 1 },
+            { code: '054', color: '#40E0D0', list: 2, step: 1 },
+            { code: '057', color: '#0047AB', list: 2, step: 1 },
+            { code: '057m', color: '#191970', list: 2, step: 2 }, // Múltiplos de 2
+            { code: '064', color: '#6BC714', list: 2, step: 1 }
+        ],
+        metalizados: [
+            { code: '090', color: '#A9A9A9', list: 3, step: 1 },
+            { code: '091', color: '#A89632', list: 3, step: 1 },
+            { code: '092', color: '#B87333', list: 3, step: 1 }
+        ],
+        reflectivos: [
+            { code: 'Blanco Reflex', color: '#F5F5F5', list: 4, step: 1 },
+            { code: 'Rojo Reflex', color: '#FF0000', list: 4, step: 1 },
+            { code: 'Naranja Reflex', color: '#DB6800', list: 4, step: 1 },
+            { code: 'Azul Reflex', color: '#0047AB', list: 4, step: 1 },
+            { code: 'Amarillo Reflex', color: '#DAA520', list: 4, step: 1 },
+            { code: 'Verde Reflex', color: '#006400', list: 4, step: 1 }
+        ],
+        fluo: [
+            { code: 'Amarillo Fluo', color: '#EEFF00', list: 5, step: 1 },
+            { code: 'Naranja Fluo', color: '#FF8C00', list: 5, step: 1 },
+            { code: 'Rosa Fluo', color: '#FF1493', list: 5, step: 1 },
+            { code: 'Verde Fluo', color: '#00FF00', list: 5, step: 1 }
+        ],
+        carbono: [
+            { code: 'Carbono Negro', color: 'carbon-black', list: 6, step: 1, isCarbon: true },
+            { code: 'Carbono Blanco', color: 'carbon-white', list: 6, step: 1, isCarbon: true },
+            { code: 'Carbono Transparente', color: 'carbon-transparent', list: 6, step: 1, isCarbon: true },
+            { code: 'Carbono Gris', color: 'carbon-gray', list: 6, step: 1, isCarbon: true }
+        ]
+    };
+
+    let orderState = {};
+    let currentOrderText = '';
+    let currentOrderImage = null;
+
+    // ============================================
+    // CARGAR PRECIOS DESDE GOOGLE SHEETS
+    // ============================================
+    
+    async function loadPricesFromSheet() {
+        try {
+            // Usar proxy CORS para evitar bloqueos
+            const proxyUrl = 'https://api.allorigins.win/raw?url=';
+            const response = await fetch(proxyUrl + encodeURIComponent(SHEET_URL));
+            
+            if (!response.ok) {
+                throw new Error('Error en la respuesta');
+            }
+            
+            const csvText = await response.text();
+            const lines = csvText.split('\n');
+            const newPrices = {};
+            
+            // Procesar CSV (saltar header)
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                // Manejar posibles comillas y espacios
+                const parts = line.split(',').map(p => p.replace(/"/g, '').trim());
+                const lista = parseInt(parts[0]);
+                const precio = parseFloat(parts[1]);
+                
+                if (!isNaN(lista) && !isNaN(precio)) {
+                    newPrices[lista] = precio;
+                }
+            }
+            
+            // Si obtuvimos precios válidos, usarlos
+            if (Object.keys(newPrices).length > 0) {
+                PRICES = newPrices;
+                console.log('Precios cargados desde Sheets:', PRICES);
+            } else {
+                throw new Error('No se encontraron precios válidos');
+            }
+            
+        } catch (error) {
+            console.error('Error cargando precios:', error);
+            PRICES = { ...BACKUP_PRICES };
+            document.getElementById('pricesError').style.display = 'block';
+        } finally {
+            // Ocultar loading y mostrar precios
+            document.getElementById('loadingPrices').style.display = 'none';
+            document.getElementById('pricesGrid').style.display = 'grid';
+            updatePriceDisplay();
+            renderAll();
+            updateTotal();
+        }
+    }
+
+    function init() {
+        loadData();
+        loadPricesFromSheet(); // Cargar precios dinámicamente
+    }
+
+    function updatePriceDisplay() {
+        document.getElementById('displayPrice1').textContent = `$${PRICES[1]?.toFixed(2) || '--'}`;
+        document.getElementById('displayPrice2').textContent = `$${PRICES[2]?.toFixed(2) || '--'}`;
+        document.getElementById('displayPrice3').textContent = `$${PRICES[3]?.toFixed(2) || '--'}`;
+        document.getElementById('displayPrice4').textContent = `$${PRICES[4]?.toFixed(2) || '--'}`;
+        document.getElementById('displayPrice5').textContent = `$${PRICES[5]?.toFixed(2) || '--'}`;
+        document.getElementById('displayPrice6').textContent = `$${PRICES[6]?.toFixed(2) || '--'}`;
+    }
+
+    function renderAll() {
+        renderGrid('gridNeutros', colorData.neutros);
+        renderGrid('gridColores', colorData.colores);
+        renderGrid('gridMetalizados', colorData.metalizados);
+        renderGrid('gridReflectivos', colorData.reflectivos);
+        renderGrid('gridFluo', colorData.fluo);
+        renderGrid('gridCarbono', colorData.carbono);
+    }
+
+    function renderGrid(gridId, colors) {
+        const grid = document.getElementById(gridId);
+        grid.innerHTML = '';
+
+        colors.forEach(item => {
+            const state = orderState[item.code] || { selected: false, meters: 0 };
+            const price = PRICES[item.list] || 0;
+            const subtotal = state.meters * price;
+
+            const card = document.createElement('div');
+            card.className = `color-card ${state.selected ? 'selected' : ''}`;
+            
+            let colorPreview = '';
+            if (item.isCarbon) {
+                colorPreview = `<div class="color-preview carbon-texture ${item.color}" style="background-color: ${getCarbonColor(item.color)};"></div>`;
+            } else {
+                colorPreview = `<div class="color-preview" style="background-color: ${item.color}; border: 2px solid #ddd;"></div>`;
+            }
+
+            const stepWarning = item.step === 2 ? `<div class="step-info">Múltiplos de 2</div>` : '';
+
+            card.innerHTML = `
+                <div class="checkbox-wrapper">
+                    <div class="custom-checkbox" onclick="toggleSelection('${item.code}')"></div>
+                </div>
+                ${colorPreview}
+                <div class="color-code">${item.code}</div>
+                
+                <div class="meter-control">
+                    <button class="meter-btn minus" onclick="changeMeters('${item.code}', -${item.step})">−</button>
+                    <div class="meter-display">${state.meters}</div>
+                    <button class="meter-btn plus" onclick="changeMeters('${item.code}', ${item.step})">+</button>
+                </div>
+                ${stepWarning}
+                
+                <div style="color: #666; font-size: 0.9em; margin-bottom: 5px;">
+                    $${price.toFixed(2)}/m
+                </div>
+                
+                ${state.meters > 0 ? `
+                    <div class="subtotal">$${subtotal.toFixed(2)}</div>
+                ` : '<div class="subtotal" style="opacity: 0.3;">$0.00</div>'}
+            `;
+            
+            grid.appendChild(card);
+        });
+    }
+
+    function getCarbonColor(carbonClass) {
+        const colors = {
+            'carbon-black': '#1a1a1a',
+            'carbon-white': '#f5f5f5',
+            'carbon-transparent': '#d0d0d0',
+            'carbon-gray': '#808080'
+        };
+        return colors[carbonClass] || '#333';
+    }
+
+    function changeMeters(code, delta) {
+        if (!orderState[code]) {
+            orderState[code] = { selected: false, meters: 0 };
+        }
+        
+        let newMeters = orderState[code].meters + delta;
+        if (newMeters < 0) newMeters = 0;
+        
+        orderState[code].meters = newMeters;
+        if (newMeters > 0) orderState[code].selected = true;
+        
+        saveData();
+        renderAll();
+        updateTotal();
+    }
+
+    function toggleSelection(code) {
+        if (!orderState[code]) {
+            orderState[code] = { selected: false, meters: 0 };
+        }
+        orderState[code].selected = !orderState[code].selected;
+        
+        saveData();
+        renderAll();
+        updateTotal();
+    }
+
+    function updateTotal() {
+        let total = 0;
+        let totalMeters = 0;
+        let itemCount = 0;
+
+        Object.keys(orderState).forEach(code => {
+            const state = orderState[code];
+            if (state.selected && state.meters > 0) {
+                const color = findColor(code);
+                if (color && PRICES[color.list]) {
+                    total += state.meters * PRICES[color.list];
+                    totalMeters += state.meters;
+                    itemCount++;
+                }
+            }
+        });
+
+        document.getElementById('totalPrice').textContent = `$${total.toFixed(2)}`;
+        document.getElementById('totalMeters').textContent = totalMeters;
+        document.getElementById('totalItems').textContent = itemCount;
+    }
+
+    function findColor(code) {
+        const all = [
+            ...colorData.neutros, 
+            ...colorData.colores, 
+            ...colorData.metalizados, 
+            ...colorData.reflectivos, 
+            ...colorData.fluo, 
+            ...colorData.carbono
+        ];
+        return all.find(c => c.code === code);
+    }
+
+    function selectAll() {
+        const all = [
+            ...colorData.neutros, 
+            ...colorData.colores, 
+            ...colorData.metalizados, 
+            ...colorData.reflectivos, 
+            ...colorData.fluo, 
+            ...colorData.carbono
+        ];
+        all.forEach(item => {
+            if (!orderState[item.code]) orderState[item.code] = { selected: true, meters: 0 };
+            else orderState[item.code].selected = true;
+        });
+        saveData();
+        renderAll();
+        updateTotal();
+    }
+
+    function deselectAll() {
+        Object.keys(orderState).forEach(code => {
+            orderState[code].selected = false;
+        });
+        saveData();
+        renderAll();
+        updateTotal();
+    }
+
+    function clearData() {
+        if (confirm('¿Borrar todo el pedido?')) {
+            orderState = {};
+            saveData();
+            renderAll();
+            updateTotal();
+            showNotification('Pedido limpiado');
+        }
+    }
+
+    function saveOrder() {
+        const items = [];
+        let total = 0;
+
+        Object.keys(orderState).forEach(code => {
+            const state = orderState[code];
+            if (state.selected && state.meters > 0) {
+                const color = findColor(code);
+                const price = PRICES[color.list] || 0;
+                const subtotal = state.meters * price;
+                items.push({ ...color, meters: state.meters, price, subtotal });
+                total += subtotal;
+            }
+        });
+
+        if (items.length === 0) {
+            alert('No hay items seleccionados');
+            return;
+        }
+
+        // Generar texto para compartir
+        const date = new Date().toLocaleString('es-ES');
+        let text = `*PEDIDO DE VINILOS*\n📅 ${date}\n\n`;
+        
+        items.forEach(item => {
+            text += `• *${item.code}*\n  ${item.meters}m × $${item.price.toFixed(2)} = $${item.subtotal.toFixed(2)}\n\n`;
+        });
+        
+        text += `\n*TOTAL: $${total.toFixed(2)}*`;
+        currentOrderText = text;
+
+        const modalBody = document.getElementById('modalBody');
+        
+        let html = `<div style="color: #666; margin-bottom: 20px;">${date}</div>`;
+        
+        items.forEach(item => {
+            html += `
+                <div class="order-item">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: ${item.isCarbon ? getCarbonColor(item.color) : item.color}; border-radius: 8px; border: 2px solid #ddd; ${item.isCarbon ? 'background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)' : ''}"></div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 1.1em;">${item.code}</div>
+                            <div style="font-size: 0.85em; color: #666;">${item.meters}m × $${item.price.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    <div style="font-weight: 700; font-size: 1.2em;">$${item.subtotal.toFixed(2)}</div>
+                </div>
+            `;
+        });
+
+        html += `
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 3px solid #27ae60; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1.3em; font-weight: 700;">TOTAL</span>
+                <span style="font-size: 2em; font-weight: 700; color: #27ae60;">$${total.toFixed(2)}</span>
+            </div>
+            <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-whatsapp" onclick="shareToWhatsApp()" style="width: 100%;">
+                    📱 Compartir por WhatsApp (Texto)
+                </button>
+                <button class="btn btn-info" onclick="generateOrderImage()" style="width: 100%;">
+                    📷 Generar imagen del pedido
+                </button>
+                <button class="btn btn-primary" onclick="window.print()" style="width: 100%;">
+                    🖨️ Imprimir
+                </button>
+                <button class="btn btn-success" onclick="downloadOrder()" style="width: 100%;">
+                    📥 Descargar TXT
+                </button>
+            </div>
+        `;
+
+        modalBody.innerHTML = html;
+        document.getElementById('orderModal').classList.add('active');
+        showNotification('Pedido guardado');
+    }
+
+    function shareToWhatsApp() {
+        if (!currentOrderText) return;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: 'Pedido de Vinilos',
+                text: currentOrderText
+            }).then(() => {
+                showNotification('Compartido exitosamente');
+            }).catch(() => {
+                openWhatsApp();
+            });
+        } else {
+            openWhatsApp();
+        }
+    }
+
+    function openWhatsApp() {
+        const encodedText = encodeURIComponent(currentOrderText);
+        const whatsappURL = `https://wa.me/?text=${encodedText}`;
+        
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            window.location.href = `whatsapp://send?text=${encodedText}`;
+            setTimeout(() => {
+                window.open(whatsappURL, '_blank');
+            }, 1000);
+        } else {
+            window.open(whatsappURL, '_blank');
+        }
+    }
+
+    async function generateOrderImage() {
+        showNotification('Generando imagen...');
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.style.cssText = `
+            background: white;
+            padding: 30px;
+            width: 500px;
+            font-family: Arial, sans-serif;
+            color: #333;
+        `;
+        
+        const date = new Date().toLocaleString('es-ES');
+        const items = [];
+        let total = 0;
+        
+        Object.keys(orderState).forEach(code => {
+            const state = orderState[code];
+            if (state.selected && state.meters > 0) {
+                const color = findColor(code);
+                const price = PRICES[color.list] || 0;
+                const subtotal = state.meters * price;
+                items.push({ ...color, meters: state.meters, price, subtotal });
+                total += subtotal;
+            }
+        });
+        
+        let itemsHTML = '';
+        items.forEach(item => {
+            const bgColor = item.isCarbon ? getCarbonColor(item.color) : item.color;
+            itemsHTML += `
+                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="width: 40px; height: 40px; background: ${bgColor}; border-radius: 6px; margin-right: 15px; border: 2px solid #ddd; flex-shrink: 0;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${item.code}</div>
+                        <div style="color: #666; font-size: 0.9em;">${item.meters}m × $${item.price.toFixed(2)}</div>
+                    </div>
+                    <div style="font-weight: bold; font-size: 1.2em; color: #27ae60;">$${item.subtotal.toFixed(2)}</div>
+                </div>
+            `;
+        });
+        
+        tempDiv.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #27ae60; padding-bottom: 15px;">
+                <h1 style="color: #2c3e50; margin: 0; font-size: 1.8em;">🎨 PEDIDO DE VINILOS</h1>
+                <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">${date}</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                ${itemsHTML}
+            </div>
+            <div style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.9;">TOTAL DEL PEDIDO</div>
+                <div style="font-size: 2em; font-weight: bold;">$${total.toFixed(2)}</div>
+            </div>
+            <div style="text-align: center; margin-top: 15px; color: #999; font-size: 0.8em;">
+                Generado con Gestor de Vinilos
+            </div>
+        `;
+        
+        document.body.appendChild(tempDiv);
+        
+        try {
+            const canvas = await html2canvas(tempDiv, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            
+            document.body.removeChild(tempDiv);
+            
+            const imageData = canvas.toDataURL('image/png');
+            currentOrderImage = imageData;
+            
+            const imageContainer = document.getElementById('imageContainer');
+            imageContainer.innerHTML = `<img src="${imageData}" alt="Pedido" style="max-width: 100%; border-radius: 10px;">`;
+            
+            document.getElementById('imageModal').classList.add('active');
+            showNotification('Imagen generada');
+            
+        } catch (error) {
+            console.error('Error generando imagen:', error);
+            document.body.removeChild(tempDiv);
+            showNotification('Error al generar imagen');
+        }
+    }
+
+    function closeImageModal() {
+        document.getElementById('imageModal').classList.remove('active');
+    }
+
+    function downloadOrder() {
+        const items = [];
+        let total = 0;
+        let content = 'PEDIDO DE VINILOS\n==================\n\n';
+        content += `Fecha: ${new Date().toLocaleString('es-ES')}\n\n`;
+
+        Object.keys(orderState).forEach(code => {
+            const state = orderState[code];
+            if (state.selected && state.meters > 0) {
+                const color = findColor(code);
+                const price = PRICES[color.list] || 0;
+                const subtotal = state.meters * price;
+                content += `${code}\n`;
+                content += `  Metros: ${state.meters}m\n`;
+                content += `  Precio: $${price.toFixed(2)}/m\n`;
+                content += `  Subtotal: $${subtotal.toFixed(2)}\n\n`;
+                total += subtotal;
+            }
+        });
+
+        content += `==================\nTOTAL: $${total.toFixed(2)}\n`;
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pedido_vinilos_${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+    }
+
+    function closeModal() {
+        document.getElementById('orderModal').classList.remove('active');
+    }
+
+    function showNotification(msg) {
+        const notif = document.getElementById('notification');
+        notif.textContent = msg;
+        notif.classList.add('show');
+        setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    function saveData() {
+        localStorage.setItem('vinylOrder_sheets', JSON.stringify(orderState));
+    }
+
+    function loadData() {
+        const saved = localStorage.getItem('vinylOrder_sheets');
+        if (saved) orderState = JSON.parse(saved);
+    }
+
+    document.getElementById('orderModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal();
+    });
+    
+    document.getElementById('imageModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeImageModal();
+    });
+
+    init();
+</script>
+
+</body>
+</html>
