@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Vinilos Profesional</title>
+    <!-- Biblioteca para generar imágenes -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -319,6 +321,10 @@
         .btn-success:hover { background: #229954; transform: translateY(-2px); }
         .btn-warning { background: #f39c12; color: white; }
         .btn-danger { background: #e74c3c; color: white; }
+        .btn-whatsapp { background: #25D366; color: white; }
+        .btn-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; transform: translateY(-2px); }
 
         .total-section {
             background: linear-gradient(135deg, #0f2027 0%, #203a43 100%);
@@ -433,11 +439,35 @@
 
         .notification.show { transform: translateX(0); }
 
+        /* Estilos para el modal de imagen */
+        .image-preview-modal .modal-content {
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .image-preview-modal img {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin: 20px 0;
+        }
+
+        .share-instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
         @media (max-width: 768px) {
             .color-grid { grid-template-columns: 1fr; }
             header h1 { font-size: 2em; }
             .price-grid { grid-template-columns: 1fr; }
             .meter-display { font-size: 1.8em; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -473,7 +503,7 @@
                 <span class="price-value" id="displayPrice5">$25967.50</span>
             </div>
             <div class="price-item">
-                <span class="list-name">🏁 Carbono (Lista 6):</span>
+                <span class="list-name">🏁 Carbono :</span>
                 <span class="price-value" id="displayPrice6">$26000</span>
             </div>
         </div>
@@ -530,6 +560,7 @@
     </div>
 </div>
 
+<!-- Modal de pedido -->
 <div class="modal" id="orderModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -540,13 +571,36 @@
     </div>
 </div>
 
+<!-- Modal de vista previa de imagen -->
+<div class="modal image-preview-modal" id="imageModal">
+    <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);">
+            <h2>📷 Vista Previa</h2>
+            <button class="close-modal" onclick="closeImageModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="imageContainer"></div>
+            <div class="share-instructions">
+                <strong>📱 Para enviar por WhatsApp:</strong>
+                <ol style="margin-top: 10px; padding-left: 20px;">
+                    <li>Presioná y mantené la imagen de arriba</li>
+                    <li>Seleccioná "Guardar imagen" o "Compartir"</li>
+                    <li>Abrí WhatsApp y enviala</li>
+                </ol>
+            </div>
+            <button class="btn btn-whatsapp" onclick="shareToWhatsApp()" style="width: 100%; margin-top: 10px;">
+                📱 Intentar compartir directo
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="notification" id="notification">Pedido guardado</div>
 
 <script>
     // ============================================
     // CONFIGURACIÓN DE PRECIOS - EDITAR AQUÍ
     // ============================================
-    // Modificá estos valores y subí el archivo a GitHub para actualizar permanentemente
     
     const PRICES = {
         1: 5414.50,   // Neutros
@@ -608,6 +662,8 @@
     };
 
     let orderState = {};
+    let currentOrderText = '';
+    let currentOrderImage = null;
 
     function init() {
         loadData();
@@ -810,8 +866,18 @@
             return;
         }
 
-        const modalBody = document.getElementById('modalBody');
+        // Generar texto para compartir
         const date = new Date().toLocaleString('es-ES');
+        let text = `*PEDIDO DE VINILOS*\n📅 ${date}\n\n`;
+        
+        items.forEach(item => {
+            text += `• *${item.code}*\n  ${item.meters}m × $${item.price.toFixed(2)} = $${item.subtotal.toFixed(2)}\n\n`;
+        });
+        
+        text += `\n*TOTAL: $${total.toFixed(2)}*`;
+        currentOrderText = text;
+
+        const modalBody = document.getElementById('modalBody');
         
         let html = `<div style="color: #666; margin-bottom: 20px;">${date}</div>`;
         
@@ -835,15 +901,159 @@
                 <span style="font-size: 1.3em; font-weight: 700;">TOTAL</span>
                 <span style="font-size: 2em; font-weight: 700; color: #27ae60;">$${total.toFixed(2)}</span>
             </div>
-            <div style="margin-top: 25px; display: flex; gap: 12px;">
-                <button class="btn btn-primary" onclick="window.print()" style="flex: 1;">🖨️ Imprimir</button>
-                <button class="btn btn-success" onclick="downloadOrder()" style="flex: 1;">📥 Descargar</button>
+            <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-whatsapp" onclick="shareToWhatsApp()" style="width: 100%;">
+                    📱 Compartir por WhatsApp (Texto)
+                </button>
+                <button class="btn btn-info" onclick="generateOrderImage()" style="width: 100%;">
+                    📷 Generar imagen del pedido
+                </button>
+                <button class="btn btn-primary" onclick="window.print()" style="width: 100%;">
+                    🖨️ Imprimir
+                </button>
+                <button class="btn btn-success" onclick="downloadOrder()" style="width: 100%;">
+                    📥 Descargar TXT
+                </button>
             </div>
         `;
 
         modalBody.innerHTML = html;
         document.getElementById('orderModal').classList.add('active');
         showNotification('Pedido guardado');
+    }
+
+    function shareToWhatsApp() {
+        if (!currentOrderText) return;
+        
+        // Intentar usar Web Share API primero (mejor para Android)
+        if (navigator.share) {
+            navigator.share({
+                title: 'Pedido de Vinilos',
+                text: currentOrderText
+            }).then(() => {
+                showNotification('Compartido exitosamente');
+            }).catch((error) => {
+                // Si falla, usar método tradicional de WhatsApp
+                openWhatsApp();
+            });
+        } else {
+            // Fallback para navegadores que no soportan Web Share API
+            openWhatsApp();
+        }
+    }
+
+    function openWhatsApp() {
+        const encodedText = encodeURIComponent(currentOrderText);
+        const whatsappURL = `https://wa.me/?text=${encodedText}`;
+        
+        // En móvil, intentar abrir app nativa primero
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // Intentar esquema nativo de WhatsApp
+            window.location.href = `whatsapp://send?text=${encodedText}`;
+            
+            // Si no abre en 1 segundo, abrir versión web
+            setTimeout(() => {
+                window.open(whatsappURL, '_blank');
+            }, 1000);
+        } else {
+            // En desktop, abrir WhatsApp Web
+            window.open(whatsappURL, '_blank');
+        }
+    }
+
+    async function generateOrderImage() {
+        showNotification('Generando imagen...');
+        
+        // Crear un elemento temporal para la imagen
+        const tempDiv = document.createElement('div');
+        tempDiv.style.cssText = `
+            background: white;
+            padding: 30px;
+            width: 500px;
+            font-family: Arial, sans-serif;
+            color: #333;
+        `;
+        
+        const date = new Date().toLocaleString('es-ES');
+        const items = [];
+        let total = 0;
+        
+        Object.keys(orderState).forEach(code => {
+            const state = orderState[code];
+            if (state.selected && state.meters > 0) {
+                const color = findColor(code);
+                const price = PRICES[color.list];
+                const subtotal = state.meters * price;
+                items.push({ ...color, meters: state.meters, price, subtotal });
+                total += subtotal;
+            }
+        });
+        
+        let itemsHTML = '';
+        items.forEach(item => {
+            const bgColor = item.isCarbon ? getCarbonColor(item.color) : item.color;
+            itemsHTML += `
+                <div style="display: flex; align-items: center; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="width: 40px; height: 40px; background: ${bgColor}; border-radius: 6px; margin-right: 15px; border: 2px solid #ddd; flex-shrink: 0;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 1.1em; color: #2c3e50;">${item.code}</div>
+                        <div style="color: #666; font-size: 0.9em;">${item.meters}m × $${item.price.toFixed(2)}</div>
+                    </div>
+                    <div style="font-weight: bold; font-size: 1.2em; color: #27ae60;">$${item.subtotal.toFixed(2)}</div>
+                </div>
+            `;
+        });
+        
+        tempDiv.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #27ae60; padding-bottom: 15px;">
+                <h1 style="color: #2c3e50; margin: 0; font-size: 1.8em;">🎨 PEDIDO DE VINILOS</h1>
+                <p style="color: #666; margin: 5px 0 0 0; font-size: 0.9em;">${date}</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                ${itemsHTML}
+            </div>
+            <div style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.9;">TOTAL DEL PEDIDO</div>
+                <div style="font-size: 2em; font-weight: bold;">$${total.toFixed(2)}</div>
+            </div>
+            <div style="text-align: center; margin-top: 15px; color: #999; font-size: 0.8em;">
+                Generado con Gestor de Vinilos
+            </div>
+        `;
+        
+        document.body.appendChild(tempDiv);
+        
+        try {
+            const canvas = await html2canvas(tempDiv, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            
+            document.body.removeChild(tempDiv);
+            
+            // Convertir a imagen
+            const imageData = canvas.toDataURL('image/png');
+            currentOrderImage = imageData;
+            
+            // Mostrar en modal
+            const imageContainer = document.getElementById('imageContainer');
+            imageContainer.innerHTML = `<img src="${imageData}" alt="Pedido" style="max-width: 100%; border-radius: 10px;">`;
+            
+            document.getElementById('imageModal').classList.add('active');
+            showNotification('Imagen generada');
+            
+        } catch (error) {
+            console.error('Error generando imagen:', error);
+            document.body.removeChild(tempDiv);
+            showNotification('Error al generar imagen');
+        }
+    }
+
+    function closeImageModal() {
+        document.getElementById('imageModal').classList.remove('active');
     }
 
     function downloadOrder() {
@@ -888,16 +1098,21 @@
     }
 
     function saveData() {
-        localStorage.setItem('vinylOrder_v5', JSON.stringify(orderState));
+        localStorage.setItem('vinylOrder_v6', JSON.stringify(orderState));
     }
 
     function loadData() {
-        const saved = localStorage.getItem('vinylOrder_v5');
+        const saved = localStorage.getItem('vinylOrder_v6');
         if (saved) orderState = JSON.parse(saved);
     }
 
+    // Cerrar modales al hacer clic fuera
     document.getElementById('orderModal').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeModal();
+    });
+    
+    document.getElementById('imageModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeImageModal();
     });
 
     init();
@@ -905,4 +1120,3 @@
 
 </body>
 </html>
-
