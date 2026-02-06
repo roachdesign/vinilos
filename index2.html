@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Vinilos Profesional (Sheets)</title>
-    <!-- Biblioteca para generar imágenes -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         * {
@@ -106,6 +105,22 @@
             margin-top: 10px;
         }
 
+        .update-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: #e8f4f8;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #2c5f72;
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+
+        .update-time {
+            font-weight: 700;
+            color: #2980b9;
+        }
+
         .section {
             padding: 30px;
             border-bottom: 2px solid #ecf0f1;
@@ -166,7 +181,6 @@
             box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        /* Textura de carbono */
         .carbon-texture {
             background-image: 
                 repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px),
@@ -444,7 +458,6 @@
 
         .notification.show { transform: translateX(0); }
 
-        /* Estilos para el modal de imagen */
         .image-preview-modal .modal-content {
             max-width: 500px;
             text-align: center;
@@ -518,8 +531,8 @@
                 <span class="price-value" id="displayPrice6">$--</span>
             </div>
         </div>
-        <div style="margin-top: 15px; padding: 10px; background: #e8f4f8; border-radius: 6px; font-size: 0.85em; color: #666; text-align: center;">
-            📊 Los precios se actualizan automáticamente desde Google Sheets
+        <div class="update-info" id="updateInfo" style="display: none;">
+            📊 Última actualización de precios: <span class="update-time" id="lastUpdateTime">--</span>
         </div>
     </div>
 
@@ -571,7 +584,6 @@
     </div>
 </div>
 
-<!-- Modal de pedido -->
 <div class="modal" id="orderModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -582,7 +594,6 @@
     </div>
 </div>
 
-<!-- Modal de vista previa de imagen -->
 <div class="modal image-preview-modal" id="imageModal">
     <div class="modal-content">
         <div class="modal-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);">
@@ -613,7 +624,6 @@
     // CONFIGURACIÓN - URL DE GOOGLE SHEETS
     // ============================================
     
-    // REEMPLAZÁ ESTA URL con la tuya cuando quieras cambiarla
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS0l3TMUBAyEaNZikA3C0s35G8GYLq302-Wm1mePxCthc7MX47BqfqqHDpsGR3mao-VIxCfbv0BAjRz/pub?gid=0&single=true&output=csv';
     
     // ============================================
@@ -621,19 +631,19 @@
     // ============================================
     
     const BACKUP_PRICES = {
-        1: 5414.50,   // Neutros
-        2: 6630,      // Colores  
-        3: 7514,      // Metalizados
-        4: 6298.50,   // Reflectivos
-        5: 25967.50,  // Fluo
-        6: 26000      // Carbono
+        1: 5414.50,
+        2: 6630,
+        3: 7514,
+        4: 6298.50,
+        5: 25967.50,
+        6: 26000
     };
     
-    // Variable global de precios (se carga dinámicamente)
     let PRICES = { ...BACKUP_PRICES };
+    let lastUpdateText = 'No disponible';
     
     // ============================================
-    // CONFIGURACIÓN DE COLORES - EDITAR AQUÍ LOS TONOS HEX
+    // CONFIGURACIÓN DE COLORES
     // ============================================
     
     const colorData = {
@@ -645,14 +655,14 @@
         colores: [
             { code: '021', color: '#FFDD00', list: 2, step: 1 },
             { code: '031', color: '#D90707', list: 2, step: 1 },
-            { code: '031m', color: '#B22222', list: 2, step: 2 }, // Múltiplos de 2
+            { code: '031m', color: '#B22222', list: 2, step: 2 },
             { code: '036', color: '#FF8C00', list: 2, step: 1 },
             { code: '040', color: '#8B00FF', list: 2, step: 1 },
             { code: '041', color: '#C71585', list: 2, step: 1 },
             { code: '045', color: '#FFB6C1', list: 2, step: 1 },
             { code: '054', color: '#40E0D0', list: 2, step: 1 },
             { code: '057', color: '#0047AB', list: 2, step: 1 },
-            { code: '057m', color: '#191970', list: 2, step: 2 }, // Múltiplos de 2
+            { code: '057m', color: '#191970', list: 2, step: 2 },
             { code: '064', color: '#6BC714', list: 2, step: 1 }
         ],
         metalizados: [
@@ -687,12 +697,11 @@
     let currentOrderImage = null;
 
     // ============================================
-    // CARGAR PRECIOS DESDE GOOGLE SHEETS
+    // CARGAR PRECIOS Y FECHA DESDE GOOGLE SHEETS
     // ============================================
     
     async function loadPricesFromSheet() {
         try {
-            // Usar proxy CORS para evitar bloqueos
             const proxyUrl = 'https://api.allorigins.win/raw?url=';
             const response = await fetch(proxyUrl + encodeURIComponent(SHEET_URL));
             
@@ -704,46 +713,58 @@
             const lines = csvText.split('\n');
             const newPrices = {};
             
-            // Procesar CSV (saltar header)
+            // Procesar todas las líneas
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                // Manejar posibles comillas y espacios
                 const parts = line.split(',').map(p => p.replace(/"/g, '').trim());
-                const lista = parseInt(parts[0]);
-                const precio = parseFloat(parts[1]);
+                const key = parts[0];
+                const value = parts[1];
                 
-                if (!isNaN(lista) && !isNaN(precio)) {
-                    newPrices[lista] = precio;
+                // Si es un número (lista de precios)
+                if (!isNaN(parseInt(key)) && !isNaN(parseFloat(value))) {
+                    newPrices[parseInt(key)] = parseFloat(value);
+                }
+                // Si es la clave de última actualización
+                else if (key === 'ultima_actualizacion' && value) {
+                    lastUpdateText = value;
                 }
             }
             
-            // Si obtuvimos precios válidos, usarlos
             if (Object.keys(newPrices).length > 0) {
                 PRICES = newPrices;
-                console.log('Precios cargados desde Sheets:', PRICES);
+                console.log('Precios cargados:', PRICES);
+                console.log('Fecha de actualización:', lastUpdateText);
             } else {
                 throw new Error('No se encontraron precios válidos');
             }
             
         } catch (error) {
-            console.error('Error cargando precios:', error);
+            console.error('Error cargando datos:', error);
             PRICES = { ...BACKUP_PRICES };
+            lastUpdateText = 'Error al cargar';
             document.getElementById('pricesError').style.display = 'block';
         } finally {
-            // Ocultar loading y mostrar precios
             document.getElementById('loadingPrices').style.display = 'none';
             document.getElementById('pricesGrid').style.display = 'grid';
+            document.getElementById('updateInfo').style.display = 'block';
+            
             updatePriceDisplay();
+            updateLastUpdateTime();
             renderAll();
             updateTotal();
         }
     }
 
+    function updateLastUpdateTime() {
+        const timeElement = document.getElementById('lastUpdateTime');
+        timeElement.textContent = lastUpdateText;
+    }
+
     function init() {
         loadData();
-        loadPricesFromSheet(); // Cargar precios dinámicamente
+        loadPricesFromSheet();
     }
 
     function updatePriceDisplay() {
@@ -940,7 +961,6 @@
             return;
         }
 
-        // Generar texto para compartir
         const date = new Date().toLocaleString('es-ES');
         let text = `*PEDIDO DE VINILOS*\n📅 ${date}\n\n`;
         
@@ -1161,11 +1181,11 @@
     }
 
     function saveData() {
-        localStorage.setItem('vinylOrder_sheets', JSON.stringify(orderState));
+        localStorage.setItem('vinylOrder_sheets_v3', JSON.stringify(orderState));
     }
 
     function loadData() {
-        const saved = localStorage.getItem('vinylOrder_sheets');
+        const saved = localStorage.getItem('vinylOrder_sheets_v3');
         if (saved) orderState = JSON.parse(saved);
     }
 
